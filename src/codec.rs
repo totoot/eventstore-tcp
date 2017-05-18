@@ -64,32 +64,28 @@ impl PackageCodec {
     }
 
     fn decode_header(&mut self, buf: &[u8]) -> io::Result<(u8, Uuid, Option<UsernamePassword>, usize)> {
-        let (d, c, a, pos) = {
-            let mut cursor = io::Cursor::new(buf);
-            let discriminator = cursor.read_u8()?;
-            let flags = cursor.read_u8()?;
-            let flags = match TcpFlags::from_bits(flags) {
-                Some(flags) => flags,
-                None => bail!(ErrorKind::InvalidFlags(flags)),
-            };
-
-            let correlation_id = {
-                let mut uuid_bytes = [0u8; 16];
-                cursor.read_exact(&mut uuid_bytes)?;
-                // this should only err if len is not 16
-                Uuid::from_bytes(&uuid_bytes).unwrap()
-            };
-
-            let authentication = if flags.contains(FLAG_AUTHENTICATED) {
-                Some(UsernamePassword::decode(&mut cursor)?)
-            } else {
-                None
-            };
-
-            (discriminator, correlation_id, authentication, cursor.position() as usize)
+        let mut cursor = io::Cursor::new(buf);
+        let discriminator = cursor.read_u8()?;
+        let flags = cursor.read_u8()?;
+        let flags = match TcpFlags::from_bits(flags) {
+            Some(flags) => flags,
+            None => bail!(ErrorKind::InvalidFlags(flags)),
         };
 
-        Ok((d, c, a, pos))
+        let correlation_id = {
+            let mut uuid_bytes = [0u8; 16];
+            cursor.read_exact(&mut uuid_bytes)?;
+            // this should only err if len is not 16
+            Uuid::from_bytes(&uuid_bytes).unwrap()
+        };
+
+        let authentication = if flags.contains(FLAG_AUTHENTICATED) {
+            Some(UsernamePassword::decode(&mut cursor)?)
+        } else {
+            None
+        };
+
+        Ok((discriminator, correlation_id, authentication, cursor.position() as usize))
     }
 
     #[doc(hidden)]
