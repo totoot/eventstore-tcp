@@ -205,14 +205,6 @@ impl<'a> RawMessage<'a> {
             }
         }
 
-        macro_rules! without_data {
-            ($x: expr, $buf: expr) => {
-                {
-                    Ok($x)
-                }
-            }
-        }
-
         macro_rules! decoded {
             ($x:ty, $buf:expr, $var:expr) => {
                 {
@@ -227,11 +219,10 @@ impl<'a> RawMessage<'a> {
         }
 
         match discriminator {
-            // these hold no data
-            0x01 => without_data!(RawMessage::HeartbeatRequest, buf),
-            0x02 => without_data!(RawMessage::HeartbeatResponse, buf),
-            0x03 => without_data!(RawMessage::Ping, buf),
-            0x04 => without_data!(RawMessage::Pong, buf),
+            0x01 => Ok(RawMessage::HeartbeatRequest),
+            0x02 => Ok(RawMessage::HeartbeatResponse),
+            0x03 => Ok(RawMessage::Ping),
+            0x04 => Ok(RawMessage::Pong),
 
             0x82 => decoded!(WriteEvents, buf, RawMessage::WriteEvents),
             0x83 => decoded!(WriteEventsCompleted, buf, RawMessage::WriteEventsCompleted),
@@ -254,8 +245,8 @@ impl<'a> RawMessage<'a> {
 
             0xF0 => Ok(RawMessage::BadRequest(Cow::Borrowed(buf).into())),
             0xF1 => decoded!(NotHandled, buf, RawMessage::NotHandled),
-            0xF2 => without_data!(RawMessage::Authenticate, buf),
-            0xF3 => without_data!(RawMessage::Authenticated, buf),
+            0xF2 => Ok(RawMessage::Authenticate),
+            0xF3 => Ok(RawMessage::Authenticated),
             0xF4 => Ok(RawMessage::NotAuthenticated(Cow::Borrowed(buf).into())),
             x => Ok((x, Cow::Borrowed(buf)).into()),
         }
