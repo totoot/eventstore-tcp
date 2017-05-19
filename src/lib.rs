@@ -127,11 +127,14 @@ pub use auth::UsernamePassword;
 mod event_number;
 pub use event_number::EventNumber;
 
-mod stream_version;
-pub use stream_version::StreamVersion;
-
 mod expected_version;
 pub use expected_version::ExpectedVersion;
+
+mod message;
+pub use message::Message;
+
+mod stream_version;
+pub use stream_version::StreamVersion;
 
 mod errors {
     use std::str;
