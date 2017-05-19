@@ -260,10 +260,8 @@ impl<'a> RawMessage<'a> {
         macro_rules! encode {
             ($x: expr, $w: expr) => {
                 {
-                    let mut writer = quick_protobuf::writer::Writer::new($w);
-                    let result: Result<(), io::Error> = $x.write_message(&mut writer)
-                        .map_err(|x| x.into());
-                    result
+                    let mut writer = quick_protobuf::Writer::new($w);
+                    $x.write_message(&mut writer).map_err(Into::into)
                 }
             }
         }
