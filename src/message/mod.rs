@@ -1,17 +1,25 @@
 use std::convert::TryFrom;
-use raw::client_messages::*;
+use raw::client_messages;
 use quick_protobuf::BytesReader;
 
+mod read_event;
+pub use self::read_event::ReadEvent;
+
+/// Enumeration of converted messages.
 #[derive(Debug)]
 pub enum Message<'a> {
+    /// Requests heartbeat from the other side. Unsure if clients or server sends these.
     HeartbeatRequest,
+    /// Response to a heartbeat request.
     HeartbeatResponse,
+
+    /// Ping request, similar to heartbeat.
     Ping,
+    /// Ping response.
     Pong,
 
-    WriteEvents {
-        inner: WriteEvents<'a>
-    },
+    /// Request to read a single event from a stream
+    ReadEvent(client_messages::ReadEvent<'a>),
 }
 
 impl<'a> TryFrom<&'a [u8]> for Message<'a> {
@@ -34,9 +42,8 @@ impl<'a> TryFrom<&'a [u8]> for Message<'a> {
 
             0x82 => {
                 let mut reader = BytesReader::from_bytes(buffer);
-                Message::WriteEvents {
-                    inner: WriteEvents::from_reader(&mut reader, buffer).map_err(|_| ())? // FIXME don't ignore the error
-                }
+                let read_event = client_messages::ReadEvent::from_reader(&mut reader, buffer).or(Err(()))?; // FIXME don't ignore the error
+                Message::ReadEvent(read_event)
             }
 
             _ => return Err( () )
