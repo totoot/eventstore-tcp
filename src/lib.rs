@@ -81,21 +81,18 @@
 #![deny(missing_docs)]
 #![feature(try_from)]
 
-#[macro_use]
-extern crate bitflags;
+#[macro_use] extern crate bitflags;
 extern crate quick_protobuf;
 extern crate uuid;
 extern crate byteorder;
-#[macro_use]
-extern crate error_chain;
-extern crate futures;
+#[macro_use] extern crate error_chain;
+#[macro_use] extern crate futures;
 extern crate tokio_io;
 extern crate tokio_core;
 extern crate tokio_proto;
 extern crate tokio_service;
 extern crate bytes;
-#[macro_use]
-extern crate derive_more;
+#[macro_use] extern crate derive_more;
 
 #[cfg(test)]
 extern crate hex;

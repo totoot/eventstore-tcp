@@ -2,7 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 
 use futures::Future;
-
+use futures::{Poll, Sink, Stream, StartSend, Async};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncWrite, AsyncRead};
 use tokio_io::codec::{Encoder, Decoder, Framed};
@@ -49,30 +49,70 @@ impl Service for EventStoreClient {
     }
 }
 
-/*
-/// Simple middleware
+/// Simple heartbeats middleware
 struct Heartbeats<T> {
-    inner: T,
+    /// The upstream transport
+    upstream: T,
 }
 
+/// Implement `Stream` for our transport heartbeats middleware
 impl<T> Stream for Heartbeats<T>
-    where T: Service<Request = Package, Response = Package, Error = io::Error>,
-          T::Future: 'static
+    where T: Stream<Item = (Uuid, Package), Error = io::Error>,
+          T: Sink<SinkItem = (Uuid, Package), SinkError = io::Error>,
 {
-    type Request = Package;
-    type Response = Package;
+    type Item = (Uuid, Package);
     type Error = io::Error;
-    type Future = Box<Future<Item = Package, Error = io::Error>>;
 
-    fn call(&self, req: Package) -> Self::Future {
-        if self.credentials.as_ref().is_some() && req.authentication.is_none() {
-            req.authentication = self.credentials.clone();
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+
+        println!("Heartbeats handler!");
+        loop {
+            // match try_ready!(self.upstream.poll()) {
+            //     Some((id, Package { authentication, correlation_id, message })) => {
+            //         // // Intercept PING messages and send back a PONG
+            //         // let res = try!(self.start_send("PONG".to_string()));
+
+            //         // // Ideally, the case of the sink not being ready
+            //         // // should be handled. See the link to the full
+            //         // // example below.
+            //         // assert!(res.is_ready());
+
+            //         // // Try flushing the pong, only bubble up errors
+            //         // try!(self.poll_complete());
+            //         unimplemented!()
+            //     }
+            //     m => return Ok(Async::Ready(m)),
+            // }
+
+            use raw::RawMessage;
+
+            let x = try_ready!(self.upstream.poll());
+            if let Some((_, Package { ref message, .. })) = x {
+                if let &RawMessage::Pong = message { // replace this by HearthbeatRequest
+                    println!("Here is a Pong!");
+                }
+            }
+            return Ok(Async::Ready(x))
+
         }
-
-        self.inner.call(req)
     }
 }
-*/
+
+// FIXME I don't know if that the right way
+impl<T> Sink for Heartbeats<T>
+    where T: Sink<SinkItem = (Uuid, Package), SinkError = io::Error> {
+
+    type SinkItem = (Uuid, Package);
+    type SinkError = io::Error;
+
+    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        self.upstream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        self.upstream.poll_complete()
+    }
+}
 
 pub struct Separator;
 
@@ -117,10 +157,12 @@ impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for PackageProto {
     type Response = Package;
     type RequestId = Uuid;
 
-    type Transport = Framed<T, Separator>;
+    type Transport = Heartbeats<Framed<T, Separator>>;
     type BindTransport = Result<Self::Transport, io::Error>;
 
     fn bind_transport(&self, io: T) -> Self::BindTransport {
-        Ok(io.framed(Separator))
+        Ok(Heartbeats {
+            upstream: io.framed(Separator)
+        })
     }
 }
