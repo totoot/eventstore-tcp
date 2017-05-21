@@ -66,46 +66,27 @@ impl<T> Stream for Heartbeats<T>
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
 
         println!("Heartbeats handler!");
-        loop {
-            // match try_ready!(self.upstream.poll()) {
-            //     Some((id, Package { authentication, correlation_id, message })) => {
-            //         // Intercept PING messages and send back a PONG
-            //         let res = try!(self.start_send("PONG".to_string()));
+        use raw::RawMessage::{HeartbeatRequest, HeartbeatResponse};
+        let x = try_ready!(self.upstream.poll());
+        if let Some((_, Package { ref authentication, ref correlation_id, message: HeartbeatRequest })) = x {
+            println!("Here is an HeartbeatRequest!");
 
-            //         // Ideally, the case of the sink not being ready
-            //         // should be handled. See the link to the full
-            //         // example below.
-            //         assert!(res.is_ready());
+            let heartbeat = Package {
+                authentication: authentication.clone(), // FIXME don't clone
+                correlation_id: *correlation_id,
+                message: HeartbeatResponse,
+            };
+            let res = self.start_send((*correlation_id, heartbeat))?;
 
-            //         // Try flushing the pong, only bubble up errors
-            //         try!(self.poll_complete());
-            //     }
-            //     m => return Ok(Async::Ready(m)),
-            // }
+            assert!(res.is_ready()); // FIXME
 
-            use raw::RawMessage;
+            self.poll_complete()?;
 
-            let x = try_ready!(self.upstream.poll());
-            if let Some((_, Package { correlation_id, ref message, .. })) = x {
-                if let &RawMessage::HeartbeatRequest = message { // replace this by HearthbeatRequest
-                    println!("Here is an HeartbeatRequest!");
-
-                    let heartbeat = Package {
-                        authentication: None,
-                        correlation_id: correlation_id,
-                        message: RawMessage::HeartbeatResponse,
-                    };
-                    let res = self.start_send((correlation_id, heartbeat))?;
-
-                    assert!(res.is_ready()); // FIXME
-
-                    self.poll_complete()?;
-
-                    // FIXME what did I return here ?
-                }
-            }
-            return Ok(Async::Ready(x))
+            // FIXME what did I return here ?
+            // did I break here and return NotReady ?
         }
+        // FIXME I always return the message here, even if this is an handled one
+        return Ok(Async::Ready(x))
     }
 }
 
