@@ -55,6 +55,8 @@ struct Heartbeats<T> {
     upstream: T,
 }
 
+// https://github.com/tokio-rs/tokio-line/blob/e2cf5758198cf56d87a064da34ffc7ad8ff8b13c/simple/examples/ping_pong.rs#L39
+
 /// Implement `Stream` for our transport heartbeats middleware
 impl<T> Stream for Heartbeats<T>
     where T: Stream<Item = (Uuid, Package), Error = io::Error>,
